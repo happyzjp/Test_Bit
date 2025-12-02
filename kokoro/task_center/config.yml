@@ -28,7 +28,7 @@ task_center:
 
 auto_update:
   enabled: true
-  github_repo: kokoro/task_center
+  github_repo: happyzjp/Test_Bit
   branch: main
   check_interval: 300
   restart_delay: 10
