@@ -1,0 +1,13 @@
+database:
+  url: postgresql://kokoro:kokoro@localhost:5432/kokoro
+
+task_center:
+  url: http://localhost:8000
+
+api:
+  key: your_api_key_here
+
+logging:
+  level: INFO
+  file: logs/website_admin.log
+

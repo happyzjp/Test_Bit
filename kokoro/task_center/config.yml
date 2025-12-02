@@ -1,0 +1,45 @@
+database:
+  url: postgresql://kokoro:kokoro@localhost:5432/kokoro
+
+redis:
+  url: redis://localhost:6379/0
+
+bittensor:
+  # Production (mainnet) config (默认注释掉，仅作为参考)
+  # netuid: 1
+  # chain_endpoint: wss://entrypoint-finney.opentensor.ai:443
+
+  # Test / development config（默认使用测试环境）
+  # 根据实际测试网络修改下面两个参数
+  netuid: 356
+  network: test
+  chain_endpoint: wss://test.finney.opentensor.ai:443
+
+wallet:
+  name: owner
+  hotkey: hotkey
+
+task_center:
+  validators_per_audit_task: 3
+  miner_selection_count: 10
+  min_stake_requirement: 1000.0
+  miner_health_check_interval: 600
+  miner_heartbeat_timeout: 120
+
+auto_update:
+  enabled: false
+  github_repo: kokoro/task_center
+  branch: main
+  check_interval: 300
+  restart_delay: 10
+
+reward:
+  treasury_ratio: 0.10
+  miner_pool_ratio: 0.90
+  text_task_ratio: 0.30
+  image_task_ratio: 0.70
+
+logging:
+  level: INFO
+  file: logs/task_center.log
+
