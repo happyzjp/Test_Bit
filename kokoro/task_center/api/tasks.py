@@ -13,7 +13,7 @@ from kokoro.task_center.shared import miner_cache
 
 router = APIRouter()
 logger = setup_logger(__name__)
-logger.info("init log test restart python")
+logger.info("init log test restart python 2")
 
 @router.post("/publish", response_model=TaskResponse)
 async def publish_task(
