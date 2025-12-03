@@ -21,6 +21,7 @@ class UserResponse(BaseModel):
     username: str
     role: str
     is_active: bool
+    avatar: Optional[str] = None
     created_at: Optional[datetime] = None
 
     class Config:
@@ -38,4 +39,5 @@ class UserUpdate(BaseModel):
     password: Optional[str] = None
     role: Optional[str] = None
     is_active: Optional[bool] = None
+    avatar: Optional[str] = None
 

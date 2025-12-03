@@ -27,7 +27,7 @@ task_center:
   miner_heartbeat_timeout: 120
 
 auto_update:
-  enabled: true
+  enabled: false
   github_repo: happyzjp/Test_Bit
   branch: main
   check_interval: 300

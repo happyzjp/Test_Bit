@@ -84,28 +84,28 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
-        logger.info("Validator service shutting down")
-        
-        try:
-            await bittensor_sync.stop_sync()
-        except Exception as e:
-            logger.error(f"Error stopping bittensor sync: {e}", exc_info=True)
-        
-        try:
-            await task_processor.stop()
-        except Exception as e:
-            logger.error(f"Error stopping task processor: {e}", exc_info=True)
-        
-        try:
-            await auto_update.stop()
-        except Exception as e:
-            logger.error(f"Error stopping auto-update: {e}", exc_info=True)
-        
-        try:
-            thread_pool = get_thread_pool()
-            thread_pool.shutdown(wait=True)
-        except Exception as e:
-            logger.error(f"Error shutting down thread pool: {e}", exc_info=True)
+    logger.info("Validator service shutting down")
+    
+    try:
+        await bittensor_sync.stop_sync()
+    except Exception as e:
+        logger.error(f"Error stopping bittensor sync: {e}", exc_info=True)
+    
+    try:
+        await task_processor.stop()
+    except Exception as e:
+        logger.error(f"Error stopping task processor: {e}", exc_info=True)
+    
+    try:
+        await auto_update.stop()
+    except Exception as e:
+        logger.error(f"Error stopping auto-update: {e}", exc_info=True)
+    
+    try:
+        thread_pool = get_thread_pool()
+        thread_pool.shutdown(wait=True)
+    except Exception as e:
+        logger.error(f"Error shutting down thread pool: {e}", exc_info=True)
 
 # Recreate app with lifespan handler to avoid on_event deprecation warnings
 app = FastAPI(title="KOKORO Validator", version="1.0.0", lifespan=lifespan)

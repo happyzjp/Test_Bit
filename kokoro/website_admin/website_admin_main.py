@@ -30,12 +30,62 @@ if os.path.exists(config_path):
 
 from kokoro.website_admin.models import TaskTemplate, TaskHistory, OperationLog, User
 
-Base.metadata.create_all(bind=engine)
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """FastAPI lifespan context: handles startup and shutdown without deprecated on_event."""
     logger.info("Website Admin service starting up")
+    
+    # Run database migrations first (before creating tables)
+    from kokoro.website_admin.database import run_migrations
+    from sqlalchemy import text, inspect
+    try:
+        logger.info("Running database migrations...")
+        run_migrations()
+        logger.info("Database migrations completed successfully")
+    except Exception as e:
+        logger.error(f"Failed to run migrations: {e}", exc_info=True)
+        # Don't raise - allow service to start, but log the error
+        # The migration will be retried on next startup
+    
+    # Verify critical migrations: check if avatar column exists
+    # This is a critical migration, so we must ensure it's applied
+    try:
+        inspector = inspect(engine)
+        if inspector.has_table('users'):
+            columns = [col['name'] for col in inspector.get_columns('users')]
+            logger.debug(f"Users table columns: {columns}")
+            if 'avatar' not in columns:
+                logger.warning("Avatar column not found after migrations, attempting to add it directly...")
+                try:
+                    with engine.begin() as conn:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar VARCHAR(255)"))
+                    logger.info("Avatar column added successfully via direct SQL")
+                    # Verify it was added
+                    inspector = inspect(engine)
+                    columns = [col['name'] for col in inspector.get_columns('users')]
+                    if 'avatar' not in columns:
+                        raise Exception("Avatar column still not found after direct SQL execution")
+                    logger.info("Avatar column verified successfully")
+                except Exception as e:
+                    logger.error(f"Failed to add avatar column directly: {e}", exc_info=True)
+                    raise Exception(f"Critical migration failed: avatar column could not be added. Error: {e}")
+            else:
+                logger.info("Avatar column already exists in users table")
+    except Exception as e:
+        logger.error(f"Failed to verify/add avatar column: {e}", exc_info=True)
+        # For critical migrations, we should fail fast
+        raise Exception(f"Cannot start service: avatar column migration failed. Please run migration manually: {e}")
+    
+    # Create/update tables after migrations (this ensures schema matches models)
+    try:
+        logger.info("Creating/updating database tables...")
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables created/updated")
+    except Exception as e:
+        logger.error(f"Failed to create/update tables: {e}")
+        # Don't raise - tables might already exist
+    
+    # Initialize default data
     from kokoro.website_admin.database import init_data
     try:
         init_data()

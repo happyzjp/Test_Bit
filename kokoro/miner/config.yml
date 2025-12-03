@@ -24,7 +24,7 @@ miner:
   max_test_jobs: 4
 
 auto_update:
-  enabled: true
+  enabled: false
   github_repo: happyzjp/Test_Bit
   branch: main
   check_interval: 1200

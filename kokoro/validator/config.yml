@@ -21,7 +21,7 @@ validator:
   validators_per_task: 3
 
 auto_update:
-  enabled: true
+  enabled: false
   github_repo: kokoro/validator
   branch: main
   check_interval: 300

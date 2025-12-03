@@ -250,6 +250,7 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
         username=current_user.username,
         role=current_user.role_obj.name if current_user.role_obj else "unknown",
         is_active=current_user.is_active,
+        avatar=current_user.avatar,
         created_at=current_user.created_at
     )
 
@@ -321,14 +322,18 @@ async def update_user(
             detail="You can only update your own password"
         )
     
-    # Non-admins can only update password
+    # Non-admins can only update password, username, and avatar
     if not is_admin:
         if user_data.password:
             user.hashed_password = get_password_hash(user_data.password)
-        else:
+        if user_data.username:
+            user.username = user_data.username
+        if user_data.avatar is not None:
+            user.avatar = user_data.avatar
+        if user_data.password is None and user_data.username is None and user_data.avatar is None:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="You can only update your password"
+                detail="You can only update your password, username, and avatar"
             )
     else:
         # Admins can update everything
@@ -336,6 +341,8 @@ async def update_user(
             user.username = user_data.username
         if user_data.password:
             user.hashed_password = get_password_hash(user_data.password)
+        if user_data.avatar is not None:
+            user.avatar = user_data.avatar
         if user_data.role:
             # Prevent downgrading the default admin to viewer
             if user.email == DEFAULT_ADMIN_EMAIL and user_data.role == "viewer":
@@ -370,6 +377,7 @@ async def update_user(
         username=user.username,
         role=user.role_obj.name if user.role_obj else "unknown",
         is_active=user.is_active,
+        avatar=user.avatar,
         created_at=user.created_at
     )
 

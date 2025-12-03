@@ -85,17 +85,20 @@ def execute_migration(version, file_path):
             logger.warning(f"Migration {version} is empty, skipping")
             return
         
+        logger.debug(f"Migration {version} SQL content:\n{sql_content}")
+        
         with engine.begin() as conn:  # Use begin() for automatic transaction management
             # Execute the entire migration SQL file
             # PostgreSQL supports executing multiple statements in one call
-            conn.execute(text(sql_content))
+            result = conn.execute(text(sql_content))
+            logger.debug(f"Migration {version} SQL executed, affected rows: {result.rowcount if hasattr(result, 'rowcount') else 'N/A'}")
             
             # Mark migration as executed
             mark_migration_executed(version, file_path.name, conn)
             logger.info(f"Migration {version} executed successfully")
             
     except Exception as e:
-        logger.error(f"Failed to execute migration {version} ({file_path.name}): {e}")
+        logger.error(f"Failed to execute migration {version} ({file_path.name}): {e}", exc_info=True)
         raise
 
 
