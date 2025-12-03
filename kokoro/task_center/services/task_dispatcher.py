@@ -8,8 +8,8 @@ from kokoro.task_center.services.task_repository import TaskRepository
 from kokoro.task_center.services.audit_task_creator import AuditTaskCreator
 from kokoro.task_center.services.miner_selector import MinerSelector
 from kokoro.task_center.services.miner_cache import MinerCache
-from kokoro.common.bittensor.client import BittensorClient
 from kokoro.common.utils.logging import setup_logger
+from kokoro.task_center import shared
 import uuid
 import asyncio
 
@@ -22,7 +22,7 @@ class TaskDispatcher:
         self.repository = TaskRepository(db)
         self.audit_creator = AuditTaskCreator(db)
         self.miner_selector = MinerSelector(db, miner_cache)
-        self.bittensor_client = BittensorClient("task_center", "default")
+        self.bittensor_client = shared.bittensor_client
     
     def create_task(self, task_data: TaskCreate) -> Task:
         now = datetime.now(timezone.utc)

@@ -1,12 +1,12 @@
 from sqlalchemy.orm import Session
 from typing import List, Dict, Optional, Union
 from datetime import datetime, timezone
-from kokoro.common.bittensor.client import BittensorClient
 from kokoro.common.models.miner import Miner
 from kokoro.common.models.score import Score
 from kokoro.common.models.task_assignment import TaskAssignment
 from kokoro.common.utils.logging import setup_logger
 from kokoro.task_center.services.miner_cache import MinerCache
+from kokoro.task_center import shared
 import random
 import httpx
 from kokoro.common.config import settings
@@ -17,7 +17,7 @@ logger = setup_logger(__name__)
 class MinerSelector:
     def __init__(self, db: Session, miner_cache: MinerCache):
         self.db = db
-        self.bittensor_client = BittensorClient("task_center", "default")
+        self.bittensor_client = shared.bittensor_client
         self.miner_cache = miner_cache
     
     def select_miners(
@@ -26,21 +26,12 @@ class MinerSelector:
         count: Optional[int] = 10,
         min_stake: float = 1000.0
     ) -> List[str]:
-        existing_assignments = self.db.query(TaskAssignment).filter(
-            TaskAssignment.workflow_id == workflow_id
-        ).all()
-        
-        assigned_hotkeys = {a.miner_hotkey for a in existing_assignments}
-        
+
         online_miners = self.miner_cache.get_online_miners()
-        online_miners_set = {m["hotkey"] for m in online_miners}
         
         eligible_miners = []
         for miner_data in online_miners:
             hotkey = miner_data["hotkey"]
-            
-            if hotkey in assigned_hotkeys:
-                continue
             
             if miner_data.get("stake", 0.0) < min_stake:
                 continue
@@ -131,8 +122,6 @@ class MinerSelector:
                 
                 if miner_url:
                     async with httpx.AsyncClient(timeout=10.0) as client:
-                        # According to architecture doc: HTTP POST to miner's /train endpoint
-                        # Try /v1/train first, fallback to /v1/workflows/receive for compatibility
                         endpoints = ["/v1/train", "/v1/workflows/receive"]
                         response = None
 

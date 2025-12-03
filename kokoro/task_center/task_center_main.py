@@ -43,7 +43,8 @@ from kokoro.task_center.services.task_lifecycle_manager import TaskLifecycleMana
 from kokoro.task_center.services.miner_health_checker import MinerHealthChecker
 from kokoro.common.bittensor.wallet import WalletManager
 from kokoro.common.utils.thread_pool import get_thread_pool
-from kokoro.task_center.shared import miner_cache
+from kokoro.task_center.shared import miner_cache, bittensor_client
+import kokoro.task_center.shared as shared_instances
 
 logger = setup_logger(__name__)
 
@@ -83,12 +84,12 @@ app = FastAPI(title="KOKORO Task Center", version="1.0.0")
 
 app.include_router(router, prefix="/v1")
 
-# Initialize bittensor client (may fail if network unavailable, but service can still start)
+# Initialize global bittensor client once (may fail if network unavailable, but service can still start)
 try:
-    bittensor_client = BittensorClient(wallet_name, hotkey_name)
+    shared_instances.bittensor_client = BittensorClient(wallet_name, hotkey_name)
 except Exception as e:
     logger.warning(f"Bittensor client initialization failed (service will continue): {e}")
-    bittensor_client = None
+    shared_instances.bittensor_client = None
 
 task_center_wallet_manager = WalletManager(wallet_name, hotkey_name)
 
@@ -120,9 +121,9 @@ async def lifespan(app: FastAPI):
     logger.info("Task Center service starting up")
     logger.info(f"Config loaded from: {config_path if yaml_config else 'default'}")
 
-    if bittensor_client:
+    if shared_instances.bittensor_client:
         try:
-            bittensor_client.sync_metagraph()
+            shared_instances.bittensor_client.sync_metagraph()
         except Exception as e:
             logger.warning(f"Failed to sync metagraph (network may be unavailable): {e}")
     else:
@@ -197,9 +198,9 @@ app.include_router(router, prefix="/v1")
 async def health_check():
     try:
         miners_count = 0
-        if bittensor_client and bittensor_client.metagraph:
+        if shared_instances.bittensor_client and shared_instances.bittensor_client.metagraph:
             try:
-                miners_count = len(bittensor_client.get_all_miners())
+                miners_count = len(shared_instances.bittensor_client.get_all_miners())
             except Exception:
                 pass
         
@@ -209,7 +210,7 @@ async def health_check():
             "online_miners": miner_cache.get_online_count(),
             "cache_size": miner_cache.get_cache_size(),
             "last_update": miner_cache.get_last_update().isoformat() if miner_cache.get_last_update() else None,
-            "bittensor_connected": bittensor_client is not None and bittensor_client.metagraph is not None
+            "bittensor_connected": shared_instances.bittensor_client is not None and shared_instances.bittensor_client.metagraph is not None
         }
     except Exception as e:
         logger.error(f"Health check error: {e}", exc_info=True)

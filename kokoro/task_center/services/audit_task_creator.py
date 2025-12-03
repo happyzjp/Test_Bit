@@ -4,8 +4,8 @@ from typing import List, Optional, Dict, Any
 from kokoro.common.models.audit_task import AuditTask
 from kokoro.common.models.task import Task
 from kokoro.common.models.validator import Validator
-from kokoro.common.bittensor.client import BittensorClient
 from kokoro.common.utils.logging import setup_logger
+from kokoro.task_center import shared
 from datetime import datetime, timezone
 import uuid
 import random
@@ -16,7 +16,7 @@ logger = setup_logger(__name__)
 class AuditTaskCreator:
     def __init__(self, db: Session):
         self.db = db
-        self.bittensor_client = BittensorClient("task_center", "default")
+        self.bittensor_client = shared.bittensor_client
         self.validators_per_task = 3
     
     def create_audit_task(

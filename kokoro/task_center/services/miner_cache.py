@@ -42,7 +42,7 @@ class MinerCache:
                 last_heartbeat = miner_data.get("last_heartbeat")
                 if last_heartbeat:
                     time_since_heartbeat = (now - last_heartbeat).total_seconds()
-                    if time_since_heartbeat > self.heartbeat_timeout:
+                    if time_since_heartbeat > self.heartbeat_timeout :
                         continue
                 
                 online_miners.append(miner_data)

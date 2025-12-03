@@ -24,7 +24,13 @@ task_center:
   miner_selection_count: 10
   min_stake_requirement: 1000.0
   miner_health_check_interval: 120
-  miner_heartbeat_timeout: 120
+  miner_heartbeat_timeout: 300
+
+api:
+  key: kokoro_ITP92OEE-gehm1BKRglHAmRkpfHLtW7Wj_WhVK4g4xc
+  allowed_ips:
+    - 127.0.0.1
+    - 192.168.1.233
 
 auto_update:
   enabled: false

@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Security, Request
 from sqlalchemy.orm import Session
 from typing import List
+from datetime import datetime, timedelta, timezone
+
 from kokoro.common.database import get_db
-from kokoro.common.models.task import Task, TaskStatus
+from kokoro.common.models.task import Task, TaskStatus, PublishStatus
 from kokoro.common.auth.api_key import verify_api_key
 from kokoro.task_center.services.task_dispatcher import TaskDispatcher
 from kokoro.task_center.services.task_repository import TaskRepository
@@ -65,16 +67,54 @@ async def publish_task(
     
     dispatcher = TaskDispatcher(db, miner_cache)
     repository = TaskRepository(db)
-    
+
     existing_task = repository.get_by_workflow_id(task_data.workflow_id)
+    db.refresh(existing_task)
     if existing_task:
-        raise HTTPException(status_code=400, detail="Task already exists")
-    
-    task = dispatcher.create_task(task_data)
-    
+        if existing_task.publish_status == PublishStatus.PUBLISHED:
+            raise HTTPException(status_code=400, detail="Task already published")
+
+        now = datetime.now(timezone.utc)
+        announcement_duration = task_data.announcement_duration
+        execution_duration = task_data.execution_duration
+        review_duration = task_data.review_duration
+        reward_duration = getattr(task_data, "reward_duration", 0.0)
+
+        announcement_start = now
+        execution_start = announcement_start + timedelta(days=announcement_duration)
+        review_start = execution_start + timedelta(days=execution_duration)
+        reward_start = review_start + timedelta(days=review_duration)
+        workflow_end = reward_start + timedelta(days=reward_duration)
+
+        existing_task.workflow_type = task_data.workflow_type
+        existing_task.workflow_spec = task_data.workflow_spec.dict()
+        existing_task.status = TaskStatus.ANNOUNCEMENT
+        existing_task.publish_status = PublishStatus.PUBLISHED
+        existing_task.start_date = getattr(task_data, "start_date", existing_task.start_date)
+        existing_task.end_date = getattr(task_data, "end_date", existing_task.end_date)
+        existing_task.description = getattr(task_data, "description", existing_task.description)
+        existing_task.hf_dataset_url = getattr(task_data, "hf_dataset_url", existing_task.hf_dataset_url)
+        existing_task.pdf_file_url = getattr(task_data, "pdf_file_url", existing_task.pdf_file_url)
+        existing_task.announcement_start = announcement_start
+        existing_task.execution_start = execution_start
+        existing_task.review_start = review_start
+        existing_task.reward_start = reward_start
+        existing_task.workflow_end = workflow_end
+
+        db.commit()
+        db.refresh(existing_task)
+        task = existing_task
+
+        try:
+            await dispatcher._assign_task_to_miners(task)  # type: ignore[attr-defined]
+        except Exception as e:
+            logger.error(f"Failed to assign existing task {task.workflow_id} to miners: {e}", exc_info=True)
+    else:
+        task = dispatcher.create_task(task_data)
+
     selected_miners = dispatcher.select_miners_for_task(task_data.workflow_id)
     logger.info(f"Selected {len(selected_miners)} miners for task {task_data.workflow_id}")
-    
+
     return TaskResponse.from_orm(task)
 
 

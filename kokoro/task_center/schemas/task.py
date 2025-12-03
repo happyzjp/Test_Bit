@@ -37,7 +37,8 @@ class TaskResponse(BaseModel):
     workflow_type: str
     status: TaskStatus
     display_status: Optional[str] = None  # not_started/in_progress/completed
-    publish_status: Optional[str] = "draft"  # 草稿/已发布
+    publish_status: Optional[str] = "draft"
+    workflow_spec: Optional[Dict[str, Any]] = None
     start_date: Optional[datetime] = None  # Start Date
     end_date: Optional[datetime] = None  # End Date
     description: Optional[str] = None  # 描述
@@ -69,6 +70,7 @@ class TaskResponse(BaseModel):
             status=task.status,
             display_status=display_status,
             publish_status=getattr(task, 'publish_status', 'draft'),
+            workflow_spec=getattr(task, 'workflow_spec', None),
             start_date=getattr(task, 'start_date', None),
             end_date=getattr(task, 'end_date', None),
             description=getattr(task, 'description', None),

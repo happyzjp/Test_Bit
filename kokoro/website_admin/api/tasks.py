@@ -31,85 +31,71 @@ logger.info(f"Task Center URL configured: {task_center_url}")
 @router.post("/publish", response_model=TaskPublishResponse)
 async def publish_task(request: TaskPublishRequest, db: Session = Depends(get_db)):
     try:
-        # Check if task already exists
         existing_task = db.query(Task).filter(Task.workflow_id == request.workflow_id).first()
-        
-        # Convert workflow_spec to dict
-        workflow_spec_dict = request.workflow_spec.model_dump() if hasattr(request.workflow_spec, 'model_dump') else request.workflow_spec.dict()
-        
-        # Convert workflow_type string to enum
+
+        workflow_spec_dict = request.workflow_spec.model_dump() if hasattr(request.workflow_spec, "model_dump") else request.workflow_spec.dict()
+
         try:
             workflow_type_enum = WorkflowType(request.workflow_type)
         except ValueError:
             raise HTTPException(status_code=400, detail=f"Invalid workflow_type: {request.workflow_type}")
-        
-        # Determine publish_status
+
         publish_status = PublishStatus.DRAFT if (request.publish_status or "draft").lower() == "draft" else PublishStatus.PUBLISHED
-        
+
         if existing_task:
-            # Update existing task
+            # Update local metadata; task_center owns publish_status/status when publishing
             existing_task.task_id = request.task_id or existing_task.task_id
             existing_task.workflow_type = workflow_type_enum
             existing_task.workflow_spec = workflow_spec_dict
-            existing_task.publish_status = publish_status
             existing_task.start_date = request.start_date
             existing_task.end_date = request.end_date
             existing_task.description = request.description
             existing_task.hf_dataset_url = request.hf_dataset_url
             existing_task.pdf_file_url = request.pdf_file_url
-            
-            # If publishing (not draft), update status and call task center
-            if publish_status == PublishStatus.PUBLISHED:
-                existing_task.status = TaskStatus.ANNOUNCEMENT
+
+            if publish_status == PublishStatus.DRAFT:
+                existing_task.status = TaskStatus.PENDING
+                existing_task.publish_status = PublishStatus.DRAFT
                 db.commit()
                 db.refresh(existing_task)
-                # Call task center API after saving to database
+            else:
+                db.commit()
+                db.refresh(existing_task)
                 try:
                     await _call_task_center_api(request)
                 except HTTPException:
-                    # If task center call fails, rollback status to PENDING
-                    existing_task.status = TaskStatus.PENDING
-                    existing_task.publish_status = PublishStatus.DRAFT
-                    db.commit()
+                    # Leave local task as draft/pending on failure
                     raise
-            else:
-                # Draft: keep status as PENDING
-                existing_task.status = TaskStatus.PENDING
-                db.commit()
                 db.refresh(existing_task)
-            
+
             task = existing_task
         else:
-            # Create new task
+            # Create local task as draft; task_center will own publish_status when publishing
             task = Task(
                 task_id=request.task_id,
                 workflow_id=request.workflow_id,
                 workflow_type=workflow_type_enum,
                 workflow_spec=workflow_spec_dict,
-                status=TaskStatus.PENDING if publish_status == PublishStatus.DRAFT else TaskStatus.ANNOUNCEMENT,
-                publish_status=publish_status,
+                status=TaskStatus.PENDING,
+                publish_status=PublishStatus.DRAFT,
                 start_date=request.start_date,
                 end_date=request.end_date,
                 description=request.description,
                 hf_dataset_url=request.hf_dataset_url,
-                pdf_file_url=request.pdf_file_url
+                pdf_file_url=request.pdf_file_url,
             )
             db.add(task)
             db.commit()
             db.refresh(task)
-            
-            # If publishing (not draft), call task center API after saving to database
+
             if publish_status == PublishStatus.PUBLISHED:
                 try:
                     await _call_task_center_api(request)
                 except HTTPException:
-                    # If task center call fails, rollback to draft status
-                    task.status = TaskStatus.PENDING
-                    task.publish_status = PublishStatus.DRAFT
-                    db.commit()
+                    # Task remains draft/pending on failure
                     raise
-        
-        # Return response
+                db.refresh(task)
+
         return TaskPublishResponse(
             status=task.status.value,
             workflow_id=task.workflow_id,
@@ -118,7 +104,7 @@ async def publish_task(request: TaskPublishRequest, db: Session = Depends(get_db
             review_start=task.review_start,
             reward_start=task.reward_start,
             workflow_end=task.workflow_end,
-            message="Task saved as draft" if publish_status == PublishStatus.DRAFT else "Task published successfully"
+            message="Task saved as draft" if publish_status == PublishStatus.DRAFT else "Task published successfully",
         )
     except HTTPException:
         raise
