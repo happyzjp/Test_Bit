@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from kokoro.validator.api import router
 from kokoro.validator.services.bittensor_sync import BittensorSyncService
@@ -33,9 +34,7 @@ else:
     task_center_url = settings.TASK_CENTER_URL
     auto_update_config = {}
 
-app = FastAPI(title="KOKORO Validator", version="1.0.0")
-
-app.include_router(router, prefix="/v1")
+# App will be created after lifespan definition
 
 wallet_manager = WalletManager(wallet_name, hotkey_name)
 bittensor_sync = BittensorSyncService(wallet_manager)
@@ -57,8 +56,9 @@ auto_update = AutoUpdateService(
     restart_delay=auto_update_config.get('restart_delay', 10)
 )
 
-@app.on_event("startup")
-async def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """FastAPI lifespan context: handles startup and shutdown without deprecated on_event."""
     logger.info("Validator service starting up")
     logger.info(f"Validator hotkey: {wallet_manager.get_hotkey()}")
     logger.info(f"Validator balance: {wallet_manager.get_balance()} TAO")
@@ -80,30 +80,36 @@ async def startup_event():
         except Exception as e:
             logger.error(f"Failed to start auto-update: {e}", exc_info=True)
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    logger.info("Validator service shutting down")
-    
+    # Yield control to FastAPI (application runs here)
     try:
-        await bittensor_sync.stop_sync()
-    except Exception as e:
-        logger.error(f"Error stopping bittensor sync: {e}", exc_info=True)
-    
-    try:
-        await task_processor.stop()
-    except Exception as e:
-        logger.error(f"Error stopping task processor: {e}", exc_info=True)
-    
-    try:
-        await auto_update.stop()
-    except Exception as e:
-        logger.error(f"Error stopping auto-update: {e}", exc_info=True)
-    
-    try:
-        thread_pool = get_thread_pool()
-        thread_pool.shutdown(wait=True)
-    except Exception as e:
-        logger.error(f"Error shutting down thread pool: {e}", exc_info=True)
+        yield
+    finally:
+        logger.info("Validator service shutting down")
+        
+        try:
+            await bittensor_sync.stop_sync()
+        except Exception as e:
+            logger.error(f"Error stopping bittensor sync: {e}", exc_info=True)
+        
+        try:
+            await task_processor.stop()
+        except Exception as e:
+            logger.error(f"Error stopping task processor: {e}", exc_info=True)
+        
+        try:
+            await auto_update.stop()
+        except Exception as e:
+            logger.error(f"Error stopping auto-update: {e}", exc_info=True)
+        
+        try:
+            thread_pool = get_thread_pool()
+            thread_pool.shutdown(wait=True)
+        except Exception as e:
+            logger.error(f"Error shutting down thread pool: {e}", exc_info=True)
+
+# Recreate app with lifespan handler to avoid on_event deprecation warnings
+app = FastAPI(title="KOKORO Validator", version="1.0.0", lifespan=lifespan)
+app.include_router(router, prefix="/v1")
 
 @app.get("/health")
 async def health_check():
@@ -117,3 +123,22 @@ async def health_check():
         logger.error(f"Health check error: {e}", exc_info=True)
         return {"status": "error", "message": str(e)}
 
+
+if __name__ == "__main__":
+    import uvicorn
+    
+    # Get host and port from environment variables or use defaults
+    host = os.getenv("VALIDATOR_HOST", "0.0.0.0")
+    port = int(os.getenv("VALIDATOR_PORT", "8002"))
+    
+    logger.info(f"Starting Validator service on {host}:{port}")
+    logger.info("Using asyncio event loop (required for bittensor compatibility)")
+    
+    # Run uvicorn with asyncio loop (required for bittensor)
+    uvicorn.run(
+        app,
+        host=host,
+        port=port,
+        loop="asyncio",  # Force asyncio loop instead of uvloop
+        log_level="info"
+    )

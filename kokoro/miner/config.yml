@@ -1,0 +1,66 @@
+wallet:
+  name: owner
+  hotkey: hotkey
+
+bittensor:
+  # Production
+  # netuid: 119
+  # chain_endpoint: wss://entrypoint-finney.opentensor.ai:443
+
+  # Test / development
+  # 根据实际测试网络修改下面两个参数
+  netuid: 356
+  network: test
+  chain_endpoint: wss://test.finney.opentensor.ai:443
+
+task_center:
+  url: http://localhost:8000
+
+miner:
+  min_stake: 1000.0
+  gpu_count: 2
+  max_queue_size: 100
+  max_training_jobs: 2
+  max_test_jobs: 4
+
+auto_update:
+  enabled: true
+  github_repo: happyzjp/Test_Bit
+  branch: main
+  check_interval: 1200
+  restart_delay: 30
+
+training:
+  text:
+    base_model: Qwen/Qwen3-0.6B
+    default_lora_rank: 16
+    default_lora_alpha: 32
+    default_iteration_count: 1000
+    default_batch_size: 4
+    default_learning_rate: 2e-4
+    default_max_length: 512
+  
+  image:
+    base_model: black-forest-labs/FLUX.1-dev
+    default_lora_rank: 16
+    default_lora_alpha: 32
+    default_iteration_count: 1000
+    default_batch_size: 2
+    default_learning_rate: 1e-4
+    default_resolution: [512, 768]
+
+datasets:
+  text:
+    repository_id: kokoro/japanese-culture-qa-dataset
+    question_column: question
+    answer_column: answer
+    data_format: jsonl
+  
+  image:
+    repository_id: kokoro/manga-style-dataset
+    image_column: image
+    caption_column: text
+
+logging:
+  level: INFO
+  file: logs/miner.log

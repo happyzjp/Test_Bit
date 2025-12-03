@@ -1,0 +1,51 @@
+wallet:
+  name: validator
+  hotkey: default
+
+bittensor:
+  # Production
+  # netuid: 119
+  # chain_endpoint: wss://entrypoint-finney.opentensor.ai:443
+
+  # Test / development
+  # 根据实际测试网络修改下面两个参数
+  netuid: 356
+  network: test
+  chain_endpoint: wss://test.finney.opentensor.ai:443
+
+task_center:
+  url: http://localhost:8000
+
+validator:
+  sync_interval: 60
+  validators_per_task: 3
+
+auto_update:
+  enabled: true
+  github_repo: kokoro/validator
+  branch: main
+  check_interval: 300
+  restart_delay: 10
+
+models:
+  clip:
+    model_name: ViT-L/14
+    device: cuda
+  
+  text_encoder:
+    model_name: paraphrase-multilingual-MiniLM-L12-v2
+  
+  aesthetic:
+    model_name: openai/clip-vit-large-patch14
+  
+  nsfw:
+    model_name: Falconsai/nsfw_image_detection
+
+scoring:
+  k: 3
+  baseline: 3.5
+  time_decay_rate: 0.005
+
+logging:
+  level: INFO
+  file: logs/validator.log

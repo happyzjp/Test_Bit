@@ -3,6 +3,7 @@ import logging
 import os
 import sys
 from datetime import datetime, timezone
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from kokoro.miner.api import router
 from kokoro.miner.services.queue_manager import QueueManager
@@ -38,9 +39,7 @@ else:
     gpu_count = 1
     auto_update_config = {}
 
-app = FastAPI(title="KOKORO Miner", version="1.0.0")
-
-app.include_router(router, prefix="/v1")
+# App will be created after lifespan definition
 
 queue_manager = QueueManager(
     max_queue_size=yaml_config.get('miner.max_queue_size', 100) if yaml_config else 100,
@@ -72,8 +71,9 @@ auto_update = AutoUpdateService(
     restart_delay=auto_update_config.get('restart_delay', 10)
 )
 
-@app.on_event("startup")
-async def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """FastAPI lifespan context: handles startup and shutdown without deprecated on_event."""
     logger.info("Miner service starting up")
     logger.info(f"Miner hotkey: {wallet_manager.get_hotkey()}")
     logger.info(f"Miner balance: {wallet_manager.get_balance()} TAO")
@@ -95,30 +95,36 @@ async def startup_event():
         except Exception as e:
             logger.error(f"Failed to start auto-update: {e}", exc_info=True)
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    logger.info("Miner service shutting down")
-    
+    # Yield control to FastAPI (application runs here)
     try:
-        await queue_manager.stop_scheduler()
-    except Exception as e:
-        logger.error(f"Error stopping queue manager: {e}", exc_info=True)
-    
-    try:
-        await bittensor_sync.stop_sync()
-    except Exception as e:
-        logger.error(f"Error stopping bittensor sync: {e}", exc_info=True)
-    
-    try:
-        await auto_update.stop()
-    except Exception as e:
-        logger.error(f"Error stopping auto-update: {e}", exc_info=True)
-    
-    try:
-        thread_pool = get_thread_pool()
-        thread_pool.shutdown(wait=True)
-    except Exception as e:
-        logger.error(f"Error shutting down thread pool: {e}", exc_info=True)
+        yield
+    finally:
+        logger.info("Miner service shutting down")
+        
+        try:
+            await queue_manager.stop_scheduler()
+        except Exception as e:
+            logger.error(f"Error stopping queue manager: {e}", exc_info=True)
+        
+        try:
+            await bittensor_sync.stop_sync()
+        except Exception as e:
+            logger.error(f"Error stopping bittensor sync: {e}", exc_info=True)
+        
+        try:
+            await auto_update.stop()
+        except Exception as e:
+            logger.error(f"Error stopping auto-update: {e}", exc_info=True)
+        
+        try:
+            thread_pool = get_thread_pool()
+            thread_pool.shutdown(wait=True)
+        except Exception as e:
+            logger.error(f"Error shutting down thread pool: {e}", exc_info=True)
+
+# Recreate app with lifespan handler to avoid on_event deprecation warnings
+app = FastAPI(title="KOKORO Miner", version="1.0.0", lifespan=lifespan)
+app.include_router(router, prefix="/v1")
 
 @app.get("/health")
 async def health_check():
@@ -135,3 +141,22 @@ async def health_check():
         logger.error(f"Health check error: {e}", exc_info=True)
         return {"status": "error", "message": str(e)}
 
+
+if __name__ == "__main__":
+    import uvicorn
+    
+    # Get host and port from environment variables or use defaults
+    host = os.getenv("MINER_HOST", "0.0.0.0")
+    port = int(os.getenv("MINER_PORT", "8001"))
+    
+    logger.info(f"Starting Miner service on {host}:{port}")
+    logger.info("Using asyncio event loop (required for bittensor compatibility)")
+    
+    # Run uvicorn with asyncio loop (required for bittensor)
+    uvicorn.run(
+        app,
+        host=host,
+        port=port,
+        loop="asyncio",  # Force asyncio loop instead of uvloop
+        log_level="info"
+    )
