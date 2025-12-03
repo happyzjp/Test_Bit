@@ -171,12 +171,13 @@ def init_data():
             {"code": "dashboard", "name": "Dashboard", "menu_path": "/dashboard", "menu_icon": "LayoutDashboard", "menu_order": 1},
             {"code": "tasks", "name": "Tasks & Workflows", "menu_path": "/tasks", "menu_icon": "ListTodo", "menu_order": 2},
             {"code": "create_task", "name": "Create Task", "menu_path": "/create-task", "menu_icon": "PlusCircle", "menu_order": 3},
-            {"code": "miners", "name": "Miners", "menu_path": "/miners", "menu_icon": "Users", "menu_order": 4},
-            {"code": "validators", "name": "Validators", "menu_path": "/validators", "menu_icon": "Network", "menu_order": 5},
-            {"code": "users", "name": "User Management", "menu_path": "/users", "menu_icon": "Shield", "menu_order": 6},
-            {"code": "roles", "name": "Role Management", "menu_path": "/roles", "menu_icon": "Shield", "menu_order": 7},
-            {"code": "api_keys", "name": "API Keys", "menu_path": "/api-keys", "menu_icon": "Key", "menu_order": 8},
-            {"code": "governance", "name": "Governance", "menu_path": "/governance", "menu_icon": "Settings", "menu_order": 9},
+            {"code": "task_templates", "name": "Training Templates", "menu_path": "/task-templates", "menu_icon": "FileText", "menu_order": 4},
+            {"code": "miners", "name": "Miners", "menu_path": "/miners", "menu_icon": "Users", "menu_order": 5},
+            {"code": "validators", "name": "Validators", "menu_path": "/validators", "menu_icon": "Network", "menu_order": 6},
+            {"code": "users", "name": "User Management", "menu_path": "/users", "menu_icon": "Shield", "menu_order": 7},
+            {"code": "roles", "name": "Role Management", "menu_path": "/roles", "menu_icon": "Shield", "menu_order": 8},
+            {"code": "api_keys", "name": "API Keys", "menu_path": "/api-keys", "menu_icon": "Key", "menu_order": 9},
+            {"code": "governance", "name": "Governance", "menu_path": "/governance", "menu_icon": "Settings", "menu_order": 10},
         ]
         
         created_permissions = {}
@@ -296,6 +297,7 @@ def init_data():
         overview_menus = [
             {"code": "tasks", "name": "Task List", "path": "/tasks", "icon": "ListTodo", "order": 1, "permission_code": "tasks", "parent_code": "overview"},
             {"code": "create_task", "name": "Create Task", "path": "/create-task", "icon": "PlusCircle", "order": 2, "permission_code": "create_task", "parent_code": "overview"},
+            {"code": "task_templates", "name": "Training Templates", "path": "/task-templates", "icon": "FileText", "order": 3, "permission_code": "tasks", "parent_code": "overview"},
         ]
         
         # Level 2: Sub-menus under Network
