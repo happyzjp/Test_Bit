@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
 from datetime import datetime, timezone
 from kokoro.common.bittensor.client import BittensorClient
 from kokoro.common.models.miner import Miner
@@ -23,7 +23,7 @@ class MinerSelector:
     def select_miners(
         self,
         workflow_id: str,
-        count: int = 10,
+        count: Optional[int] = 10,
         min_stake: float = 1000.0
     ) -> List[str]:
         existing_assignments = self.db.query(TaskAssignment).filter(
@@ -81,6 +81,12 @@ class MinerSelector:
             logger.warning(f"No eligible online miners found for task {workflow_id}")
             return []
         
+        # If count is None, return all eligible miners
+        if count is None:
+            logger.info(f"Selecting all {len(eligible_miners)} eligible miners for task {workflow_id}")
+            return [m["hotkey"] for m in eligible_miners]
+        
+        # Otherwise, use weighted random selection
         weights = [m["weight"] for m in eligible_miners]
         selected = random.choices(eligible_miners, weights=weights, k=min(count, len(eligible_miners)))
         

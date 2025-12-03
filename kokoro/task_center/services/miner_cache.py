@@ -7,10 +7,11 @@ logger = setup_logger(__name__)
 
 
 class MinerCache:
-    def __init__(self):
+    def __init__(self, heartbeat_timeout: int = 120):
         self._cache: Dict[str, Dict] = {}
         self._lock = threading.RLock()
         self._last_update: Optional[datetime] = None
+        self.heartbeat_timeout = heartbeat_timeout
     
     def update_miner(self, hotkey: str, miner_data: Dict):
         with self._lock:
@@ -41,7 +42,7 @@ class MinerCache:
                 last_heartbeat = miner_data.get("last_heartbeat")
                 if last_heartbeat:
                     time_since_heartbeat = (now - last_heartbeat).total_seconds()
-                    if time_since_heartbeat > 120:
+                    if time_since_heartbeat > self.heartbeat_timeout:
                         continue
                 
                 online_miners.append(miner_data)
@@ -64,7 +65,7 @@ class MinerCache:
         if last_heartbeat:
             now = datetime.now(timezone.utc)
             time_since_heartbeat = (now - last_heartbeat).total_seconds()
-            if time_since_heartbeat > 120:
+            if time_since_heartbeat > self.heartbeat_timeout:
                 return False
         
         return True

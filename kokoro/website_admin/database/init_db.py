@@ -175,7 +175,8 @@ def init_data():
             {"code": "validators", "name": "Validators", "menu_path": "/validators", "menu_icon": "Network", "menu_order": 5},
             {"code": "users", "name": "User Management", "menu_path": "/users", "menu_icon": "Shield", "menu_order": 6},
             {"code": "roles", "name": "Role Management", "menu_path": "/roles", "menu_icon": "Shield", "menu_order": 7},
-            {"code": "governance", "name": "Governance", "menu_path": "/governance", "menu_icon": "Settings", "menu_order": 8},
+            {"code": "api_keys", "name": "API Keys", "menu_path": "/api-keys", "menu_icon": "Key", "menu_order": 8},
+            {"code": "governance", "name": "Governance", "menu_path": "/governance", "menu_icon": "Settings", "menu_order": 9},
         ]
         
         created_permissions = {}
@@ -308,7 +309,8 @@ def init_data():
             {"code": "users", "name": "User Management", "path": "/users", "icon": "Shield", "order": 1, "permission_code": "users", "parent_code": "system"},
             {"code": "roles", "name": "Role Management", "path": "/roles", "icon": "Shield", "order": 2, "permission_code": "roles", "parent_code": "system"},
             {"code": "menus", "name": "Menu Management", "path": "/menus", "icon": "Menu", "order": 3, "permission_code": "menus", "parent_code": "system"},
-            {"code": "governance", "name": "Governance", "path": "/governance", "icon": "Settings", "order": 4, "permission_code": "governance", "parent_code": "system"},
+            {"code": "api_keys", "name": "API Keys", "path": "/api-keys", "icon": "Key", "order": 4, "permission_code": "api_keys", "parent_code": "system"},
+            {"code": "governance", "name": "Governance", "path": "/governance", "icon": "Settings", "order": 5, "permission_code": "governance", "parent_code": "system"},
         ]
         
         # Create or update level 2 menus

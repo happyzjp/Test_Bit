@@ -19,10 +19,11 @@ logger.info("init log test restart python 3")
 async def publish_task(
     task_data: TaskCreate,
     request: Request,
-    api_key: str = Security(verify_api_key),
+    api_key: str = Security(verify_api_key),  # API key verification happens here before function execution
     db: Session = Depends(get_db)
 ):
-    logger.info(f"Task publish request received from authorized source: {task_data.workflow_id}")
+    # If we reach here, API key has been verified successfully
+    logger.info(f"Task publish request received from authorized source (API key verified): {task_data.workflow_id}")
     
     # Validate task data - convert Pydantic models to dicts
     try:
@@ -80,6 +81,8 @@ async def publish_task(
 @router.get("/{workflow_id}", response_model=TaskResponse)
 async def get_task(
     workflow_id: str,
+    request: Request,
+    api_key: str = Security(verify_api_key),
     db: Session = Depends(get_db)
 ):
     repository = TaskRepository(db)
@@ -94,6 +97,7 @@ async def list_tasks(
     status: TaskStatus = None,
     page: int = 1,
     page_size: int = 20,
+    api_key: str = Security(verify_api_key),
     db: Session = Depends(get_db)
 ):
     repository = TaskRepository(db)
@@ -112,6 +116,8 @@ async def list_tasks(
 
 @router.get("/pending")
 async def get_pending_tasks(
+    request: Request,
+    api_key: str = Security(verify_api_key),
     db: Session = Depends(get_db)
 ):
     """

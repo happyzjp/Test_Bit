@@ -1,9 +1,11 @@
 from fastapi import HTTPException, Security, Request, Depends
 from fastapi.security import APIKeyHeader
-from typing import Optional, List
+from typing import Optional, List, Set
 from kokoro.common.config import settings, load_yaml_config
 from kokoro.common.utils.logging import setup_logger
+from kokoro.common.database import SessionLocal
 import os
+import hashlib
 
 logger = setup_logger(__name__)
 
@@ -28,23 +30,56 @@ class APIKeyAuth:
     def _load_api_keys(self) -> set:
         api_keys = set()
         
+        # Load from config file
         if self.config:
             api_key = self.config.get('api.key')
             if api_key:
                 api_keys.add(api_key)
         
+        # Load from environment variable
         env_api_key = os.getenv("TASK_CENTER_API_KEY")
         if env_api_key:
             api_keys.add(env_api_key)
         
+        # Load from settings
         if settings.API_KEY:
             api_keys.add(settings.API_KEY)
+        
+        # Load from database (if available)
+        try:
+            db = SessionLocal()
+            try:
+                from kokoro.website_admin.models.api_key import ApiKey
+                from datetime import datetime, timezone
+                
+                now = datetime.now(timezone.utc)
+                db_keys = db.query(ApiKey).filter(
+                    ApiKey.is_active == True,
+                    (ApiKey.expires_at == None) | (ApiKey.expires_at > now)
+                ).all()
+                
+                for db_key in db_keys:
+                    # Store the hash for verification
+                    api_keys.add(db_key.key)
+                
+                if db_keys:
+                    logger.info(f"Loaded {len(db_keys)} API keys from database")
+            except Exception as e:
+                logger.debug(f"Could not load API keys from database (this is OK if tables don't exist yet): {e}")
+            finally:
+                db.close()
+        except Exception as e:
+            logger.debug(f"Database not available for API key loading: {e}")
         
         if not api_keys:
             logger.warning("No API keys configured, using default key")
             api_keys.add("default_api_key_change_in_production")
         
         return api_keys
+    
+    def _hash_api_key(self, key: str) -> str:
+        """Hash an API key for comparison with database."""
+        return hashlib.sha256(key.encode()).hexdigest()
     
     def _load_allowed_ips(self) -> List[str]:
         allowed_ips = []
@@ -73,10 +108,59 @@ class APIKeyAuth:
         if not api_key:
             return False
         
+        # Check plain keys (from config/env)
         if api_key in self.api_keys:
+            # Update last_used_at if it's a database key
+            self._update_key_usage(api_key)
+            return True
+        
+        # Check hashed keys (from database)
+        key_hash = self._hash_api_key(api_key)
+        if key_hash in self.api_keys:
+            # Update last_used_at
+            self._update_key_usage_by_hash(key_hash)
             return True
         
         return False
+    
+    def _update_key_usage(self, api_key: str):
+        """Update last_used_at for a plain API key."""
+        try:
+            db = SessionLocal()
+            try:
+                from kokoro.website_admin.models.api_key import ApiKey
+                from datetime import datetime, timezone
+                
+                key_hash = self._hash_api_key(api_key)
+                db_key = db.query(ApiKey).filter(ApiKey.key == key_hash).first()
+                if db_key:
+                    db_key.last_used_at = datetime.now(timezone.utc)
+                    db.commit()
+            except Exception as e:
+                logger.debug(f"Could not update API key usage: {e}")
+            finally:
+                db.close()
+        except Exception:
+            pass
+    
+    def _update_key_usage_by_hash(self, key_hash: str):
+        """Update last_used_at for a hashed API key."""
+        try:
+            db = SessionLocal()
+            try:
+                from kokoro.website_admin.models.api_key import ApiKey
+                from datetime import datetime, timezone
+                
+                db_key = db.query(ApiKey).filter(ApiKey.key == key_hash).first()
+                if db_key:
+                    db_key.last_used_at = datetime.now(timezone.utc)
+                    db.commit()
+            except Exception as e:
+                logger.debug(f"Could not update API key usage: {e}")
+            finally:
+                db.close()
+        except Exception:
+            pass
     
     def verify_request(
         self,

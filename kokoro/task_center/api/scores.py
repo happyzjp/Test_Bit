@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Security, Request
 from sqlalchemy.orm import Session
 from kokoro.common.database import get_db
+from kokoro.common.auth.api_key import verify_api_key
 from kokoro.task_center.services.score_archive import ScoreArchive
 from kokoro.task_center.services.consensus_sync import ConsensusSync
 from kokoro.task_center.schemas.score import ScoreSubmit, ScoreQueryResponse
@@ -24,6 +25,8 @@ async def submit_score(
 async def query_score(
     miner_hotkey: str,
     workflow_id: str = None,
+    request: Request = None,
+    api_key: str = Security(verify_api_key),
     db: Session = Depends(get_db)
 ):
     archive = ScoreArchive(db)
@@ -42,6 +45,8 @@ async def query_score(
 @router.get("/all")
 async def get_all_scores(
     workflow_id: str,
+    request: Request,
+    api_key: str = Security(verify_api_key),
     db: Session = Depends(get_db)
 ):
     """
@@ -64,6 +69,8 @@ async def get_all_scores(
 @router.get("/query")
 async def query_all_scores(
     workflow_id: str = None,
+    request: Request = None,
+    api_key: str = Security(verify_api_key),
     db: Session = Depends(get_db)
 ):
     """

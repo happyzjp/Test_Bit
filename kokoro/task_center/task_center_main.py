@@ -66,6 +66,9 @@ if yaml_config:
     hotkey_name = yaml_config.get('wallet.hotkey', 'default')
     auto_update_config = yaml_config.get_auto_update_config()
     database_url = yaml_config.get('database.url', settings.DATABASE_URL)
+    # Update miner_cache heartbeat_timeout from config
+    heartbeat_timeout = yaml_config.get('task_center.miner_heartbeat_timeout', 120)
+    miner_cache.heartbeat_timeout = heartbeat_timeout
 else:
     wallet_name = "task_center"
     hotkey_name = "default"

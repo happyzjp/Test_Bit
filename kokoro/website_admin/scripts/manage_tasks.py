@@ -22,10 +22,15 @@ def load_config():
 
 def get_task(workflow_id: str, config: dict):
     task_center_url = config.get('task_center', {}).get('url', 'http://localhost:8000')
+    api_key = config.get('api', {}).get('key')
+    
+    headers = {}
+    if api_key:
+        headers["X-API-Key"] = api_key
     
     try:
         with httpx.Client(timeout=30.0) as client:
-            response = client.get(f"{task_center_url}/v1/tasks/{workflow_id}")
+            response = client.get(f"{task_center_url}/v1/tasks/{workflow_id}", headers=headers)
             response.raise_for_status()
             return response.json()
     except httpx.HTTPStatusError as e:
@@ -41,6 +46,11 @@ def get_task(workflow_id: str, config: dict):
 
 def list_tasks(status: str = None, workflow_type: str = None, page: int = 1, page_size: int = 20, config: dict = None):
     task_center_url = config.get('task_center', {}).get('url', 'http://localhost:8000')
+    api_key = config.get('api', {}).get('key')
+    
+    headers = {}
+    if api_key:
+        headers["X-API-Key"] = api_key
     
     params = {
         "page": page,
@@ -51,7 +61,7 @@ def list_tasks(status: str = None, workflow_type: str = None, page: int = 1, pag
     
     try:
         with httpx.Client(timeout=30.0) as client:
-            response = client.get(f"{task_center_url}/v1/tasks", params=params)
+            response = client.get(f"{task_center_url}/v1/tasks", params=params, headers=headers)
             response.raise_for_status()
             result = response.json()
             

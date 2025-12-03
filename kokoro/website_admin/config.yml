@@ -5,7 +5,7 @@ task_center:
   url: http://localhost:8000
 
 api:
-  key: your_api_key_here
+  key: kokoro_ITP92OEE-gehm1BKRglHAmRkpfHLtW7Wj_WhVK4g4xc
 
 logging:
   level: INFO

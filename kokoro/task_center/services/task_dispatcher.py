@@ -76,7 +76,8 @@ class TaskDispatcher:
         return task
     
     async def _assign_task_to_miners(self, task: Task):
-        selected_miners = self.miner_selector.select_miners(task.workflow_id, count=10)
+        # Send task to all online miners
+        selected_miners = self.miner_selector.select_miners(task.workflow_id, count=None)
         
         if not selected_miners:
             logger.warning(f"No eligible miners found for task {task.workflow_id}")
